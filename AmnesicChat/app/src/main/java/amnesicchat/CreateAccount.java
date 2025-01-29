@@ -45,6 +45,7 @@ public class CreateAccount {
     public int keySize;
     public LocalDate expiry;
     public String exportKeys;
+    public String comments;
 	
 	//Variables for Account Creation
     private boolean strictMode = false;
@@ -490,153 +491,81 @@ moduleListPanel.repaint();
 }
 
 public void secondGPGIdentity(JFrame frame) {
-        SwingUtilities.invokeLater(() -> {
-            frame.setTitle("AmnesicChat - Create GPG Identity");
-            frame.setSize(700, 450);
-            frame.getContentPane().removeAll();
-            frame.setLayout(new BorderLayout());
+    SwingUtilities.invokeLater(() -> {
+        frame.setTitle("AmnesicChat - Select GPG Key Options");
+        frame.setSize(700, 450);
+        frame.getContentPane().removeAll();
+        frame.setLayout(new BorderLayout());
 
-            // Main panel setup
-            JPanel mainPanel = new JPanel();
-            mainPanel.setLayout(new BoxLayout(mainPanel, BoxLayout.Y_AXIS));
-            mainPanel.setBorder(BorderFactory.createEmptyBorder(20, 50, 20, 50));
-            frame.add(mainPanel, BorderLayout.CENTER);
+        JPanel mainPanel = new JPanel();
+        mainPanel.setLayout(new BoxLayout(mainPanel, BoxLayout.Y_AXIS));
+        mainPanel.setBorder(BorderFactory.createEmptyBorder(20, 50, 20, 50));
+        frame.add(mainPanel, BorderLayout.CENTER);
 
-            // Header
-            JLabel headerLabel = new JLabel("Create GPG Identity", SwingConstants.CENTER);
-            headerLabel.setFont(new Font("SansSerif", Font.BOLD, 24));
-            headerLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
-            mainPanel.add(headerLabel);
+        JLabel headerLabel = new JLabel("Select GPG Key Options", SwingConstants.CENTER);
+        headerLabel.setFont(new Font("SansSerif", Font.BOLD, 24));
+        mainPanel.add(headerLabel);
+        mainPanel.add(Box.createVerticalStrut(20));
 
-            mainPanel.add(Box.createVerticalStrut(10));
+        JPanel formPanel = new JPanel(new GridBagLayout());
+        GridBagConstraints gbc = new GridBagConstraints();
+        gbc.insets = new Insets(10, 10, 10, 10);
+        gbc.fill = GridBagConstraints.HORIZONTAL;
 
-            JLabel subHeaderLabel = new JLabel(
-                    "<html>It is recommended to use a pseudo identity. Do not use your real identity unless necessary.<br>Hover over the text boxes and tooltip for more.</html>",
-                    SwingConstants.CENTER);
-            subHeaderLabel.setFont(new Font("SansSerif", Font.PLAIN, 14));
-            subHeaderLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
-            mainPanel.add(subHeaderLabel);
+        // Algorithm
+        gbc.gridx = 0; gbc.gridy = 0;
+        formPanel.add(new JLabel("Algorithm:"), gbc);
+        gbc.gridx = 1;
+        JComboBox<String> algorithmComboBox = new JComboBox<>(new String[]{"RSA", "ECC", "DSA"});
+        formPanel.add(algorithmComboBox, gbc);
 
-            mainPanel.add(Box.createVerticalStrut(20));
+        // Key Size
+        gbc.gridx = 0; gbc.gridy = 1;
+        formPanel.add(new JLabel("Key Size:"), gbc);
+        gbc.gridx = 1;
+        JComboBox<String> keySizeComboBox = new JComboBox<>();
+        formPanel.add(keySizeComboBox, gbc);
 
-            // Form panel
-            JPanel formPanel = new JPanel();
-            formPanel.setLayout(new GridBagLayout());
-            GridBagConstraints gbc = new GridBagConstraints();
-            gbc.insets = new Insets(10, 10, 10, 10);
-            gbc.fill = GridBagConstraints.HORIZONTAL;
-
-            // Algorithm field
-            gbc.gridx = 0;
-            gbc.gridy = 0;
-            JLabel algorithmLabel = new JLabel("Algorithm:");
-            algorithmLabel.setToolTipText("Select the encryption algorithm (e.g., RSA, ECC, DSA).");
-            formPanel.add(algorithmLabel, gbc);
-            gbc.gridx = 1;
-            String[] algorithms = {"RSA", "ECC", "DSA"};
-            JComboBox<String> algorithmComboBox = new JComboBox<>(algorithms);
-            algorithmComboBox.setSelectedIndex(-1); // No default selection
-            formPanel.add(algorithmComboBox, gbc);
-
-            // Key size field
-            gbc.gridx = 0;
-            gbc.gridy = 1;
-            JLabel keySizeLabel = new JLabel("Key Size:");
-            keySizeLabel.setToolTipText("Select the key size (e.g., 2048, 4096).");
-            formPanel.add(keySizeLabel, gbc);
-            gbc.gridx = 1;
-            JComboBox<String> keySizeComboBox = new JComboBox<>();
-            formPanel.add(keySizeComboBox, gbc);
-
-            // Comments field
-            gbc.gridx = 0;
-            gbc.gridy = 2;
-            JLabel commentsLabel = new JLabel("Comments:");
-            commentsLabel.setToolTipText("Optional comments for the GPG key.");
-            formPanel.add(commentsLabel, gbc);
-            gbc.gridx = 1;
-            JTextField commentsField = new JTextField(20);
-            formPanel.add(commentsField, gbc);
-            
-            // Export keys field
-            gbc.gridx = 0;
-            gbc.gridy = 3;
-            JLabel exportKeysLabel = new JLabel("Export Keys?");
-            exportKeysLabel.setToolTipText("Choose whether to export the keys (Both, Secret Only, Public Only, None).");
-            formPanel.add(exportKeysLabel, gbc);
-            gbc.gridx = 1;
-            String[] exportOptions = {"BOTH", "SECRET ONLY", "PUBLIC ONLY", "NONE"};
-            JComboBox<String> exportKeysComboBox = new JComboBox<>(exportOptions);
-            exportKeysComboBox.setSelectedIndex(-1); // No default selection
-            formPanel.add(exportKeysComboBox, gbc);
-            
-            // Populate key size options dynamically
-            algorithmComboBox.addActionListener(e -> {
-                String selectedAlgorithm = (String) algorithmComboBox.getSelectedItem();
-                keySizeComboBox.removeAllItems();
-                if ("RSA".equals(selectedAlgorithm)) {
-                    keySizeComboBox.addItem("2048");
-                    keySizeComboBox.addItem("3072");
-                    keySizeComboBox.addItem("4096");
-                } else if ("ECC".equals(selectedAlgorithm)) {
-                    keySizeComboBox.addItem("256");
-                    keySizeComboBox.addItem("384");
-                    keySizeComboBox.addItem("521");
-                } else if ("DSA".equals(selectedAlgorithm)) {
-                    keySizeComboBox.addItem("1024");
-                    keySizeComboBox.addItem("2048");
-                    keySizeComboBox.addItem("3072");
-                }
-                keySizeComboBox.setSelectedIndex(-1); // Reset selection
-            });
-
-            mainPanel.add(formPanel);
-
-            // Continue button
-            JButton continueButton = new JButton("Generate GPG Key");
-            continueButton.setAlignmentX(Component.CENTER_ALIGNMENT);
-            continueButton.addActionListener(e -> {
-            	createPassword(frame);
-                String algorithm = (String) algorithmComboBox.getSelectedItem();
-                String keySizeStr = (String) keySizeComboBox.getSelectedItem();
-                if (algorithm == null || keySizeStr == null) {
-                    JOptionPane.showMessageDialog(frame, "Please select both algorithm and key size.", "Error",
-                            JOptionPane.ERROR_MESSAGE);
-                } else {
-                    try {
-                        int keySize = Integer.parseInt(keySizeStr);
-                        //String privateKey = generateGPGKey("User Name", "user@example.com", "securepass", algorithm, keySize);
-
-                        // Save private key to a file
-                        File file = new File("privateKey.asc");
-                        try (FileOutputStream out = new FileOutputStream(file)) {
-                            //out.write(privateKey.getBytes());
-                        }
-
-                        JOptionPane.showMessageDialog(frame, "GPG Key successfully created.", "Success",
-                                JOptionPane.INFORMATION_MESSAGE);
-                        // selectSecurityModules(frame);  // Uncomment when implementing the next step
-                    } catch (Exception ex) {
-                        JOptionPane.showMessageDialog(frame, "Error while generating GPG key: " + ex.getMessage(), "Error",
-                                JOptionPane.ERROR_MESSAGE);
-                    }
-                }
-            });
-            
-            // Back button
-            JButton backButton = new JButton("Back");
-            backButton.setAlignmentX(Component.CENTER_ALIGNMENT);
-            backButton.addActionListener(e -> createGPGIdentity(frame));
-            
-            mainPanel.add(continueButton);
-            mainPanel.add(Box.createVerticalStrut(10));
-            mainPanel.add(backButton);
-
-            frame.add(mainPanel);
-            frame.revalidate();
-            frame.repaint();
+        algorithmComboBox.addActionListener(e -> {
+            keySizeComboBox.removeAllItems();
+            switch ((String) algorithmComboBox.getSelectedItem()) {
+                case "RSA" -> keySizeComboBox.addItem("2048");
+                case "ECC" -> keySizeComboBox.addItem("256");
+                case "DSA" -> keySizeComboBox.addItem("1024");
+            }
         });
-    }
+
+        // Comments
+        gbc.gridx = 0; gbc.gridy = 2;
+        formPanel.add(new JLabel("Comments:"), gbc);
+        gbc.gridx = 1;
+        JTextField commentsField = new JTextField(20);
+        formPanel.add(commentsField, gbc);
+
+        mainPanel.add(formPanel);
+        mainPanel.add(Box.createVerticalStrut(20));
+
+        // Generate Key
+        JButton generateKeyButton = new JButton("Generate GPG Key");
+        generateKeyButton.addActionListener(e -> {
+            algorithm = (String) algorithmComboBox.getSelectedItem();
+            String keySizeStr = (String) keySizeComboBox.getSelectedItem();
+            comments = commentsField.getText().trim();
+
+            if (algorithm == null || keySizeStr == null) {
+                JOptionPane.showMessageDialog(frame, "Algorithm and Key Size are required.", "Error", JOptionPane.ERROR_MESSAGE);
+                return;
+            }
+
+            keySize = Integer.parseInt(keySizeStr);
+            GPGKeyGenerator.generateGPGKey(name, email, passphrase, expiry, algorithm, keySize, comments);
+        });
+
+        mainPanel.add(generateKeyButton);
+        frame.revalidate();
+        frame.repaint();
+    });
+}
 
 public void createGPGIdentity(JFrame frame) {
     SwingUtilities.invokeLater(() -> {
@@ -645,18 +574,15 @@ public void createGPGIdentity(JFrame frame) {
         frame.getContentPane().removeAll();
         frame.setLayout(new BorderLayout());
 
-        // Main panel setup
         JPanel mainPanel = new JPanel();
         mainPanel.setLayout(new BoxLayout(mainPanel, BoxLayout.Y_AXIS));
         mainPanel.setBorder(BorderFactory.createEmptyBorder(20, 50, 20, 50));
         frame.add(mainPanel, BorderLayout.CENTER);
 
-        // Header
         JLabel headerLabel = new JLabel("Create GPG Identity", SwingConstants.CENTER);
         headerLabel.setFont(new Font("SansSerif", Font.BOLD, 24));
         headerLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
         mainPanel.add(headerLabel);
-
         mainPanel.add(Box.createVerticalStrut(10));
 
         JLabel subHeaderLabel = new JLabel(
@@ -666,17 +592,13 @@ public void createGPGIdentity(JFrame frame) {
         subHeaderLabel.setFont(new Font("SansSerif", Font.PLAIN, 14));
         subHeaderLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
         mainPanel.add(subHeaderLabel);
-
         mainPanel.add(Box.createVerticalStrut(20));
 
-        // Form panel
-        JPanel formPanel = new JPanel();
-        formPanel.setLayout(new GridBagLayout());
+        JPanel formPanel = new JPanel(new GridBagLayout());
         GridBagConstraints gbc = new GridBagConstraints();
         gbc.insets = new Insets(10, 10, 10, 10);
         gbc.fill = GridBagConstraints.HORIZONTAL;
 
-        // Name field
         gbc.gridx = 0;
         gbc.gridy = 0;
         JLabel nameLabel = new JLabel("Name:");
@@ -684,159 +606,137 @@ public void createGPGIdentity(JFrame frame) {
         formPanel.add(nameLabel, gbc);
         gbc.gridx = 1;
         JTextField nameField = new JTextField(20);
-        nameField.setToolTipText("Example: John Doe. Use a pseudonym for privacy.");
         formPanel.add(nameField, gbc);
 
-        // Email field
         gbc.gridx = 0;
         gbc.gridy = 1;
         JLabel emailLabel = new JLabel("E-mail:");
-        emailLabel.setToolTipText("Enter your email address for the GPG identity.");
         formPanel.add(emailLabel, gbc);
         gbc.gridx = 1;
         JTextField emailField = new JTextField(20);
-        emailField.setToolTipText("Example: user@example.com");
         formPanel.add(emailField, gbc);
 
-        // Password field
         gbc.gridx = 0;
         gbc.gridy = 2;
         JLabel passwordLabel = new JLabel("Passphrase:");
-        passwordLabel.setToolTipText("Set a strong password for your GPG key. Optional but recommended.");
         formPanel.add(passwordLabel, gbc);
         gbc.gridx = 1;
         JPasswordField passphraseField = new JPasswordField(20);
-        passphraseField.setToolTipText("Leave blank to skip. A strong password has 8+ characters.");
         formPanel.add(passphraseField, gbc);
 
-        // Expiry field
         gbc.gridx = 0;
         gbc.gridy = 3;
         JLabel expiryLabel = new JLabel("Expiry:");
-        expiryLabel.setToolTipText("Set the expiry date for the GPG key in the format DD-MM-YYYY.");
         formPanel.add(expiryLabel, gbc);
         gbc.gridx = 1;
         JTextField expiryField = new JTextField(20);
         expiryField.setText("DD-MM-YYYY");
-        expiryField.setToolTipText("Example: 31-12-2025. Expiry must be at least 90 days in the future.");
         formPanel.add(expiryField, gbc);
 
-        // Info button
         gbc.gridx = 2;
         JButton infoButton = new JButton("i");
-        infoButton.setToolTipText("Your GPG key will expire on the specified date. You must generate a new key to continue using encryption.");
         formPanel.add(infoButton, gbc);
 
         mainPanel.add(formPanel);
 
-        // Warning panel
         JPanel warningPanel = new JPanel();
         warningPanel.setLayout(new BoxLayout(warningPanel, BoxLayout.Y_AXIS));
-        warningPanel.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
         mainPanel.add(warningPanel);
 
         mainPanel.add(Box.createVerticalStrut(20));
 
-        // Button panel
-        JPanel buttonPanel = new JPanel();
-        buttonPanel.setLayout(new FlowLayout(FlowLayout.CENTER, 20, 10));
+        JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.CENTER, 20, 10));
         mainPanel.add(buttonPanel);
 
-        // Back button
         JButton backButton = new JButton("Back");
         backButton.addActionListener(e -> insertGPGIdentity(frame));
         buttonPanel.add(backButton);
 
-        // Continue button
         JButton continueButton = new JButton("Continue");
         continueButton.addActionListener(e -> {
-            boolean doVerify = false;
+            warningPanel.removeAll();
+            boolean hasErrors = false;
+            boolean hasWarnings = false;
+            StringBuilder warnings = new StringBuilder();
 
-            if (doVerify) {
-                warningPanel.removeAll(); // Clear previous warnings
-                boolean hasErrors = false;
-                boolean hasWarnings = false;
-                StringBuilder warnings = new StringBuilder();
+            String enteredName = nameField.getText().trim();
+            String enteredEmail = emailField.getText().trim();
+            char[] passwordChars = passphraseField.getPassword();
+            String enteredPassphrase = new String(passwordChars);
+            String enteredExpiry = expiryField.getText().trim();
 
-                // Validate name
-                name = nameField.getText().trim();
-                if (name.length() < 4) {
-                    JLabel errorLabel = new JLabel("Name must have at least 4 characters.");
+            if (enteredName.length() < 4) {
+                JLabel errorLabel = new JLabel("Name must have at least 4 characters.");
+                errorLabel.setForeground(Color.RED);
+                warningPanel.add(errorLabel);
+                hasErrors = true;
+            }
+
+            if (!enteredEmail.matches(".+@.+")) {
+                JLabel errorLabel = new JLabel("Email must be valid (e.g., name@example.com).");
+                errorLabel.setForeground(Color.RED);
+                warningPanel.add(errorLabel);
+                hasErrors = true;
+            }
+
+            if (passwordChars.length == 0) {
+                warnings.append("- No passphrase set. This is not recommended for security.\n");
+                hasWarnings = true;
+            } else if (passwordChars.length < 8) {
+                warnings.append("- Passphrase is weak (less than 8 characters).\n");
+                hasWarnings = true;
+            }
+
+            LocalDate expiryDate = null;
+            try {
+                DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd-MM-yyyy");
+                expiryDate = LocalDate.parse(enteredExpiry, formatter);
+                LocalDate today = LocalDate.now();
+                long daysBetween = ChronoUnit.DAYS.between(today, expiryDate);
+
+                if (!expiryDate.isAfter(today)) {
+                    JLabel errorLabel = new JLabel("Expiry date must be in the future.");
                     errorLabel.setForeground(Color.RED);
                     warningPanel.add(errorLabel);
                     hasErrors = true;
-                }
-
-                // Validate email
-                email = emailField.getText().trim();
-                if (!email.matches(".+@.+")) {
-                    JLabel errorLabel = new JLabel("Email must be valid (e.g., name@example.com).");
-                    errorLabel.setForeground(Color.RED);
-                    warningPanel.add(errorLabel);
-                    hasErrors = true;
-                }
-
-                // Validate passphrase
-                char[] password = passphraseField.getPassword();
-                if (password.length == 0) {
-                    warnings.append("- No password set. This is not recommended for security.\n");
+                } else if (daysBetween < 90) {
+                    warnings.append("- Expiry date is less than 90 days from now.\n");
                     hasWarnings = true;
-                } else if (password.length < 8) {
-                    warnings.append("- Password is weak (less than 8 characters).\n");
-                    hasWarnings = true;
                 }
+            } catch (DateTimeParseException ex) {
+                JLabel errorLabel = new JLabel("Expiry date must be valid and in the format DD-MM-YYYY.");
+                errorLabel.setForeground(Color.RED);
+                warningPanel.add(errorLabel);
+                hasErrors = true;
+            }
 
-                // Validate expiry
-                String expiryCheck = expiryField.getText().trim();  // Use the value from the text field
-                try {
-                    DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd-MM-yyyy");
-                    LocalDate expiryDate = LocalDate.parse(expiryCheck, formatter);  // Parse expiryCheck
-                    LocalDate today = LocalDate.now();
-                    long daysBetween = ChronoUnit.DAYS.between(today, expiryDate);
+            warningPanel.revalidate();
+            warningPanel.repaint();
 
-                    if (!expiryDate.isAfter(today)) {
-                        JLabel errorLabel = new JLabel("Expiry date must be in the future.");
-                        errorLabel.setForeground(Color.RED);
-                        warningPanel.add(errorLabel);
-                        hasErrors = true;
-                    } else if (daysBetween < 90) {
-                        warnings.append("- Expiry date is less than 90 days from now.\n");
-                        hasWarnings = true;
-                    } else {
-                        // Save expiry to public LocalDate variable
-                        expiry = expiryDate; // Save as LocalDate
-                    }
-                } catch (DateTimeParseException ex) {
-                    JLabel errorLabel = new JLabel("Expiry date must be valid and in the format DD-MM-YYYY.");
-                    errorLabel.setForeground(Color.RED);
-                    warningPanel.add(errorLabel);
-                    hasErrors = true;
-                }
-
-                warningPanel.revalidate();
-                warningPanel.repaint();
-
-                // Handle results
-                if (hasErrors) {
-                    JOptionPane.showMessageDialog(frame, "Please correct the highlighted errors.", "Validation Error",
-                            JOptionPane.ERROR_MESSAGE);
-                } else if (hasWarnings) {
-                    // Show warnings popup
-                    int choice = JOptionPane.showOptionDialog(frame,
-                            "Warnings:\n" + warnings.toString(),
-                            "Warnings",
-                            JOptionPane.YES_NO_OPTION,
-                            JOptionPane.WARNING_MESSAGE,
-                            null,
-                            new String[]{"Back", "Continue"},
-                            "Back");
-                    if (choice == JOptionPane.NO_OPTION) {
-                        secondGPGIdentity(frame);
-                    }
-                } else {
+            if (hasErrors) {
+                JOptionPane.showMessageDialog(frame, "Please correct the highlighted errors.", "Validation Error",
+                        JOptionPane.ERROR_MESSAGE);
+            } else if (hasWarnings) {
+                int choice = JOptionPane.showOptionDialog(frame,
+                        "Warnings:\n" + warnings.toString(),
+                        "Warnings",
+                        JOptionPane.YES_NO_OPTION,
+                        JOptionPane.WARNING_MESSAGE,
+                        null,
+                        new String[]{"Back", "Continue"},
+                        "Back");
+                if (choice == JOptionPane.NO_OPTION) {
+                    name = enteredName;
+                    email = enteredEmail;
+                    passphrase = enteredPassphrase;
+                    expiry = expiryDate;
                     secondGPGIdentity(frame);
                 }
             } else {
+            	name = enteredName;
+                email = enteredEmail;
+                passphrase = enteredPassphrase;
+                expiry = expiryDate;
                 secondGPGIdentity(frame);
             }
         });

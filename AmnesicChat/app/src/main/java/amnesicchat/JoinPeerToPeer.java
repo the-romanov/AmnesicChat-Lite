@@ -113,7 +113,7 @@ public class JoinPeerToPeer {
                 try {
                     int port = Integer.parseInt(portStr);
                     connectToPeer(ip, port);
-                    chatSession.createChatRoomUI(frame, clientSocket, user);
+                    chatSession.createChatRoomUI(frame, clientSocket, user, "someValue");
                 } catch (NumberFormatException ex) {
                     JOptionPane.showMessageDialog(frame, "Invalid port number.", "Error", JOptionPane.ERROR_MESSAGE);
                 } catch (IOException ex) {
@@ -137,20 +137,20 @@ public class JoinPeerToPeer {
     }
 
     private void connectToPeer(String ip, int port) throws IOException {
-        // Close any existing connection
         if (clientSocket != null && !clientSocket.isClosed()) {
             clientSocket.close();
         }
-        // Establish a connection to the remote peer
-        clientSocket = new Socket(ip, port);
 
-        // Optionally, you can send a handshake message or confirmation
+        clientSocket = new Socket(ip, port);
         PrintWriter out = new PrintWriter(clientSocket.getOutputStream(), true);
-        out.println("Hello from AmnesicChat!");
+
+        // Send username immediately after connecting
+        out.println(user);  
 
         // Start listening for incoming messages
         new Thread(() -> listenForMessages(clientSocket)).start();
     }
+
 
     private void listenForMessages(Socket socket) {
         try {

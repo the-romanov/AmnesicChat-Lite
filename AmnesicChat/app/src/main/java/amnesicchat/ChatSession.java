@@ -7,7 +7,7 @@ public class ChatSession {
 
     static App app = CentralManager.getApp();
 	
-    public void createChatRoomUI(JFrame frame, Socket clientSocket, String username) {
+    public void createChatRoomUI(JFrame frame, Socket clientSocket, String username, String pingUsername) {
         System.out.println(app.username);
 
         frame.getContentPane().removeAll();
@@ -20,11 +20,19 @@ public class ChatSession {
         usersPanel.setPreferredSize(new Dimension(200, 600));
         usersPanel.setBorder(BorderFactory.createTitledBorder("Users Online:"));
 
-        String[] users = {"amnesic1122qs", "amnesic1ea5", "amnesic1vw42", "amnesic1aw35"};
+        String[] users = {username, pingUsername};
         for (String user : users) {
             JPanel userPanel = new JPanel();
             userPanel.setLayout(new FlowLayout(FlowLayout.LEFT));
-            JLabel userLabel = new JLabel(user);
+            JLabel userLabel;
+
+            if (user.equals(username)) {
+                userLabel = new JLabel(user + " (You)");
+                userLabel.setForeground(Color.RED); // Your username in red
+            } else {
+                userLabel = new JLabel(user);
+            }
+
             JLabel statusIcon = new JLabel(new ImageIcon("status_icon.png"));
             userPanel.add(statusIcon);
             userPanel.add(userLabel);

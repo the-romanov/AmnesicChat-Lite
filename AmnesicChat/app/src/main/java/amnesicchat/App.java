@@ -26,6 +26,9 @@ import java.net.ServerSocket;
 import java.net.SocketException;
 import java.net.Socket;
 import java.net.InetSocketAddress;
+import java.io.BufferedReader;
+import java.io.InputStreamReader;
+
 
 public class App {
 	
@@ -227,28 +230,28 @@ private synchronized void startPingListener(JFrame frame) {
             System.out.println("Ping listener started on port 10555.");
             while (!Thread.currentThread().isInterrupted()) {
                 try {
-                    // Accept incoming connections
                     Socket clientSocket = serverSocket.accept();
 
-                    // Pass the socket to the chat session on the Swing thread
+                    // Fetch pinger's username
+                    BufferedReader in = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()));
+                    String pingerUsername = in.readLine(); // Expect first message to be username
+
+                    // Pass to chat UI
                     SwingUtilities.invokeLater(() -> {
-                        chatSession.createChatRoomUI(frame, clientSocket, username);
+                        chatSession.createChatRoomUI(frame, clientSocket, username, pingerUsername);
                     });
+
                 } catch (SocketException e) {
-                    // Handle expected socket closure
-                    if (!serverSocket.isClosed()) {
-                        e.printStackTrace();
-                    }
+                    if (!serverSocket.isClosed()) e.printStackTrace();
                     System.out.println("Ping listener socket closed.");
-                    break; // Exit the loop
+                    break;
                 } catch (IOException e) {
-                    if (!serverSocket.isClosed()) {
-                        e.printStackTrace();
-                    }
+                    if (!serverSocket.isClosed()) e.printStackTrace();
                 }
             }
             System.out.println("Ping listener thread exiting.");
         });
+
 
         // Start the thread
         pingListenerThread.start();
