@@ -528,12 +528,27 @@ public void secondGPGIdentity(JFrame frame) {
 
         algorithmComboBox.addActionListener(e -> {
             keySizeComboBox.removeAllItems();
-            switch ((String) algorithmComboBox.getSelectedItem()) {
-                case "RSA" -> keySizeComboBox.addItem("2048");
-                case "ECC" -> keySizeComboBox.addItem("256");
-                case "DSA" -> keySizeComboBox.addItem("1024");
+            String selectedAlgorithm = (String) algorithmComboBox.getSelectedItem();
+
+            switch (selectedAlgorithm) {
+                case "RSA" -> {
+                    keySizeComboBox.addItem("2048");
+                    keySizeComboBox.addItem("3072");
+                    keySizeComboBox.addItem("4096");
+                }
+                case "DSA" -> {
+                    keySizeComboBox.addItem("1024");
+                    keySizeComboBox.addItem("2048");
+                    keySizeComboBox.addItem("3072");
+                }
+                case "ECC" -> {
+                    keySizeComboBox.addItem("256");
+                    keySizeComboBox.addItem("384");
+                    keySizeComboBox.addItem("521");
+                }
             }
         });
+
 
         // Comments
         gbc.gridx = 0; gbc.gridy = 2;
@@ -548,17 +563,25 @@ public void secondGPGIdentity(JFrame frame) {
         // Generate Key
         JButton generateKeyButton = new JButton("Generate GPG Key");
         generateKeyButton.addActionListener(e -> {
-            algorithm = (String) algorithmComboBox.getSelectedItem();
+            String algorithm = (String) algorithmComboBox.getSelectedItem();
             String keySizeStr = (String) keySizeComboBox.getSelectedItem();
-            comments = commentsField.getText().trim();
+            String comments = commentsField.getText().trim();
 
-            if (algorithm == null || keySizeStr == null) {
-                JOptionPane.showMessageDialog(frame, "Algorithm and Key Size are required.", "Error", JOptionPane.ERROR_MESSAGE);
+            // Validate inputs
+            if (algorithm == null || keySizeStr == null || passphrase == null || name == null || email == null || expiry == null) {
+                JOptionPane.showMessageDialog(frame, "All fields must be filled.", "Error", JOptionPane.ERROR_MESSAGE);
                 return;
             }
 
-            keySize = Integer.parseInt(keySizeStr);
-            GPGKeyGenerator.generateGPGKey(name, email, passphrase, expiry, algorithm, keySize, comments);
+            int keySize = Integer.parseInt(keySizeStr);
+
+            try {
+                GPGKeyGenerator.generateGPGKey(name, email, passphrase, expiry, algorithm, keySize, comments);
+                JOptionPane.showMessageDialog(frame, "GPG Key generated successfully!", "Success", JOptionPane.INFORMATION_MESSAGE);
+            } catch (Exception ex) {
+                ex.printStackTrace();
+                JOptionPane.showMessageDialog(frame, "Error generating GPG key: " + ex.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
+            }
         });
 
         mainPanel.add(generateKeyButton);
