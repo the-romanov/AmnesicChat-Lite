@@ -30,6 +30,21 @@ import org.bouncycastle.openpgp.*;
 import org.bouncycastle.openpgp.operator.jcajce.*;
 import oshi.SystemInfo;
 import oshi.hardware.HWDiskStore;
+import org.bouncycastle.bcpg.ArmoredOutputStream;
+import org.bouncycastle.bcpg.HashAlgorithmTags;
+import org.bouncycastle.openpgp.*;
+import org.bouncycastle.openpgp.operator.PGPDigestCalculator;
+import org.bouncycastle.openpgp.operator.jcajce.JcaPGPDigestCalculatorProviderBuilder;
+import org.bouncycastle.openpgp.operator.jcajce.JcePBESecretKeyEncryptorBuilder;
+import org.bouncycastle.openpgp.operator.jcajce.JcaPGPContentSignerBuilder;
+import org.bouncycastle.openpgp.operator.jcajce.JcaPGPKeyPair;
+import org.bouncycastle.jce.provider.BouncyCastleProvider;
+
+import java.io.*;
+import java.security.*;
+import java.security.spec.ECGenParameterSpec;
+import java.time.LocalDate;
+import java.util.Date;
 
 public class CreateAccount {
 	
@@ -492,7 +507,7 @@ moduleListPanel.repaint();
 
 public void secondGPGIdentity(JFrame frame) {
     SwingUtilities.invokeLater(() -> {
-        frame.setTitle("AmnesicChat - Select GPG Key Options");
+        frame.setTitle("AmnesicChat - Create GPG Identity");
         frame.setSize(700, 450);
         frame.getContentPane().removeAll();
         frame.setLayout(new BorderLayout());
@@ -502,25 +517,40 @@ public void secondGPGIdentity(JFrame frame) {
         mainPanel.setBorder(BorderFactory.createEmptyBorder(20, 50, 20, 50));
         frame.add(mainPanel, BorderLayout.CENTER);
 
-        JLabel headerLabel = new JLabel("Select GPG Key Options", SwingConstants.CENTER);
+        JLabel headerLabel = new JLabel("Create GPG Identity", SwingConstants.CENTER);
         headerLabel.setFont(new Font("SansSerif", Font.BOLD, 24));
+        headerLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
         mainPanel.add(headerLabel);
+
+        mainPanel.add(Box.createVerticalStrut(10));
+
+        JLabel subHeaderLabel = new JLabel(
+                "<html>It is recommended to use a pseudo identity. Do not use your real identity unless necessary.<br>Hover over the text boxes and tooltip for more.</html>",
+                SwingConstants.CENTER);
+        subHeaderLabel.setFont(new Font("SansSerif", Font.PLAIN, 14));
+        subHeaderLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
+        mainPanel.add(subHeaderLabel);
+
         mainPanel.add(Box.createVerticalStrut(20));
 
-        JPanel formPanel = new JPanel(new GridBagLayout());
+        JPanel formPanel = new JPanel();
+        formPanel.setLayout(new GridBagLayout());
         GridBagConstraints gbc = new GridBagConstraints();
         gbc.insets = new Insets(10, 10, 10, 10);
         gbc.fill = GridBagConstraints.HORIZONTAL;
 
-        // Algorithm
-        gbc.gridx = 0; gbc.gridy = 0;
+        // Algorithm Selection
+        gbc.gridx = 0;
+        gbc.gridy = 0;
         formPanel.add(new JLabel("Algorithm:"), gbc);
         gbc.gridx = 1;
-        JComboBox<String> algorithmComboBox = new JComboBox<>(new String[]{"RSA", "ECC", "DSA"});
+        String[] algorithms = {"RSA", "ECC", "DSA"};
+        JComboBox<String> algorithmComboBox = new JComboBox<>(algorithms);
         formPanel.add(algorithmComboBox, gbc);
 
-        // Key Size
-        gbc.gridx = 0; gbc.gridy = 1;
+        // Key Size Selection
+        gbc.gridx = 0;
+        gbc.gridy = 1;
         formPanel.add(new JLabel("Key Size:"), gbc);
         gbc.gridx = 1;
         JComboBox<String> keySizeComboBox = new JComboBox<>();
@@ -528,66 +558,147 @@ public void secondGPGIdentity(JFrame frame) {
 
         algorithmComboBox.addActionListener(e -> {
             keySizeComboBox.removeAllItems();
-            String selectedAlgorithm = (String) algorithmComboBox.getSelectedItem();
-
-            switch (selectedAlgorithm) {
+            switch ((String) algorithmComboBox.getSelectedItem()) {
                 case "RSA" -> {
                     keySizeComboBox.addItem("2048");
                     keySizeComboBox.addItem("3072");
                     keySizeComboBox.addItem("4096");
-                }
-                case "DSA" -> {
-                    keySizeComboBox.addItem("1024");
-                    keySizeComboBox.addItem("2048");
-                    keySizeComboBox.addItem("3072");
                 }
                 case "ECC" -> {
                     keySizeComboBox.addItem("256");
                     keySizeComboBox.addItem("384");
                     keySizeComboBox.addItem("521");
                 }
+                case "DSA" -> {
+                    keySizeComboBox.addItem("1024");
+                    keySizeComboBox.addItem("2048");
+                    keySizeComboBox.addItem("3072");
+                }
             }
         });
 
-
-        // Comments
-        gbc.gridx = 0; gbc.gridy = 2;
-        formPanel.add(new JLabel("Comments:"), gbc);
+        // Export Keys Selection
+        gbc.gridx = 0;
+        gbc.gridy = 2;
+        formPanel.add(new JLabel("Export Keys?"), gbc);
         gbc.gridx = 1;
-        JTextField commentsField = new JTextField(20);
-        formPanel.add(commentsField, gbc);
+        JToggleButton bothButton = new JToggleButton("BOTH");
+        JToggleButton secretOnlyButton = new JToggleButton("SECRET ONLY");
+        JToggleButton publicOnlyButton = new JToggleButton("PUBLIC ONLY");
+        JToggleButton noneButton = new JToggleButton("NONE");
+
+        ButtonGroup exportButtonGroup = new ButtonGroup();
+        exportButtonGroup.add(bothButton);
+        exportButtonGroup.add(secretOnlyButton);
+        exportButtonGroup.add(publicOnlyButton);
+        exportButtonGroup.add(noneButton);
+
+        JPanel buttonPanel = new JPanel();
+        buttonPanel.setLayout(new GridLayout(1, 4, 10, 0));
+        buttonPanel.add(bothButton);
+        buttonPanel.add(secretOnlyButton);
+        buttonPanel.add(publicOnlyButton);
+        buttonPanel.add(noneButton);
+        formPanel.add(buttonPanel, gbc);
 
         mainPanel.add(formPanel);
-        mainPanel.add(Box.createVerticalStrut(20));
 
-        // Generate Key
-        JButton generateKeyButton = new JButton("Generate GPG Key");
-        generateKeyButton.addActionListener(e -> {
+        // Continue Button
+        JButton continueButton = new JButton("Generate GPG Key");
+        continueButton.setAlignmentX(Component.CENTER_ALIGNMENT);
+        continueButton.addActionListener(e -> {
             String algorithm = (String) algorithmComboBox.getSelectedItem();
             String keySizeStr = (String) keySizeComboBox.getSelectedItem();
-            String comments = commentsField.getText().trim();
 
-            // Validate inputs
-            if (algorithm == null || keySizeStr == null || passphrase == null || name == null || email == null || expiry == null) {
-                JOptionPane.showMessageDialog(frame, "All fields must be filled.", "Error", JOptionPane.ERROR_MESSAGE);
+            String exportOption = bothButton.isSelected() ? "BOTH"
+                    : secretOnlyButton.isSelected() ? "SECRET ONLY"
+                    : publicOnlyButton.isSelected() ? "PUBLIC ONLY"
+                    : noneButton.isSelected() ? "NONE" : null;
+
+            if (algorithm == null || keySizeStr == null || exportOption == null) {
+                JOptionPane.showMessageDialog(frame, "Please select algorithm, key size, and export option.", "Error",
+                        JOptionPane.ERROR_MESSAGE);
                 return;
             }
 
-            int keySize = Integer.parseInt(keySizeStr);
-
             try {
-                GPGKeyGenerator.generateGPGKey(name, email, passphrase, expiry, algorithm, keySize, comments);
-                JOptionPane.showMessageDialog(frame, "GPG Key generated successfully!", "Success", JOptionPane.INFORMATION_MESSAGE);
+                int keySize = Integer.parseInt(keySizeStr);
+                File privateKeyFile = null, publicKeyFile = null;
+
+                // Choose save location
+                if (!"NONE".equals(exportOption)) {
+                    JFileChooser fileChooser = new JFileChooser();
+                    fileChooser.setDialogTitle("Select Directory to Save Keys");
+                    fileChooser.setFileSelectionMode(JFileChooser.DIRECTORIES_ONLY);
+                    if (fileChooser.showSaveDialog(frame) == JFileChooser.APPROVE_OPTION) {
+                        File selectedDir = fileChooser.getSelectedFile();
+                        privateKeyFile = new File(selectedDir, "privateKey.asc");
+                        publicKeyFile = new File(selectedDir, "publicKey.asc");
+                    } else {
+                        JOptionPane.showMessageDialog(frame, "Key export canceled.", "Info", JOptionPane.INFORMATION_MESSAGE);
+                        return;
+                    }
+                }
+
+                // Get user's home directory (cross-platform)
+                String userHome = System.getProperty("user.home");
+                File amnesicGPGDir = new File(userHome, ".amnesic/GPGKeys");
+
+                // Ensure the directory exists
+                if (!amnesicGPGDir.exists() && !amnesicGPGDir.mkdirs()) {
+                    throw new IOException("Failed to create directory: " + amnesicGPGDir.getAbsolutePath());
+                }
+
+                System.out.println("GPG Keys will be stored in: " + amnesicGPGDir.getAbsolutePath());
+
+                // Generate GPG Key
+                String fingerprint = GPGKeyGenerator.generateGPGKey(name, email, passphrase,  expiry, algorithm, keySize, "");
+
+                // Copy files only if they exist
+                if (privateKeyFile != null && privateKeyFile.exists()) {
+                    copyFile(privateKeyFile, new File(amnesicGPGDir, "privateKey.asc"));
+                }
+                if (publicKeyFile != null && publicKeyFile.exists()) {
+                    copyFile(publicKeyFile, new File(amnesicGPGDir, "publicKey.asc"));
+                }
+
+                JOptionPane.showMessageDialog(frame, "GPG Key successfully created and copied to " + amnesicGPGDir, "Success",
+                        JOptionPane.INFORMATION_MESSAGE);
             } catch (Exception ex) {
-                ex.printStackTrace();
-                JOptionPane.showMessageDialog(frame, "Error generating GPG key: " + ex.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
+                JOptionPane.showMessageDialog(frame, "Error while generating GPG key: " + ex.getMessage(), "Error",
+                        JOptionPane.ERROR_MESSAGE);
             }
         });
 
-        mainPanel.add(generateKeyButton);
+        // Back Button
+        JButton backButton = new JButton("Back");
+        backButton.setAlignmentX(Component.CENTER_ALIGNMENT);
+        backButton.addActionListener(e -> createGPGIdentity(frame));
+
+        mainPanel.add(continueButton);
+        mainPanel.add(Box.createVerticalStrut(10));
+        mainPanel.add(backButton);
+
+        frame.add(mainPanel);
         frame.revalidate();
         frame.repaint();
     });
+}
+
+// Helper Method to Copy Files
+private void copyFile(File source, File destination) throws IOException {
+    if (source.exists() && source.isFile()) {
+        try (InputStream in = new FileInputStream(source);
+             OutputStream out = new FileOutputStream(destination)) {
+            byte[] buffer = new byte[1024];
+            int length;
+            while ((length = in.read(buffer)) > 0) {
+                out.write(buffer, 0, length);
+            }
+        }
+    } else {
+        throw new IOException("Source file not found: " + source.getAbsolutePath());
+    }
 }
 
 public void createGPGIdentity(JFrame frame) {
