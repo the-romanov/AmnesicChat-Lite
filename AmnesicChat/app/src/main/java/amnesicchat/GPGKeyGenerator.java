@@ -41,9 +41,9 @@ public class GPGKeyGenerator {
             System.out.println("GPG Private Key successfully saved in: " + privateKeyFile.getAbsolutePath());
             System.out.println("GPG Public Key successfully saved in: " + publicKeyFile.getAbsolutePath());
             
-            PGPPublicKey publicKey = publicKeyRing.getPublicKey();
+            PGPPublicKeyRing publicKeyRing = keyRingGenerator.generatePublicKeyRing();
+            PGPPublicKey publicKey = publicKeyRing.getPublicKey(); // Fetch the first public key
             byte[] fingerprint = publicKey.getFingerprint();
-            System.out.println(bytesToHex(fingerprint));
             return bytesToHex(fingerprint);
         }
     }

@@ -61,6 +61,8 @@ public class CreateAccount {
     public LocalDate expiry;
     public String exportKeys;
     public String comments;
+    
+    private String fingerprint;
 	
 	//Variables for Account Creation
     private boolean strictMode = false;
@@ -133,7 +135,7 @@ public class CreateAccount {
         continueButton.setFont(new Font("Arial", Font.PLAIN, 14));
         continueButton.setAlignmentX(Component.CENTER_ALIGNMENT);
         continueButton.addActionListener(e -> {
-        	app.loggedInMenu(frame, username, "GPG Key Needed");
+        	app.loggedInMenu(frame, username, fingerprint);
         });
         panel.add(continueButton);
 
@@ -652,7 +654,7 @@ public void secondGPGIdentity(JFrame frame) {
                 System.out.println("GPG Keys will be stored in: " + amnesicGPGDir.getAbsolutePath());
 
                 // Generate GPG Key
-                String fingerprint = GPGKeyGenerator.generateGPGKey(name, email, passphrase,  expiry, algorithm, keySize, "");
+                fingerprint = GPGKeyGenerator.generateGPGKey(name, email, passphrase,  expiry, algorithm, keySize, "");
 
                 // Copy files only if they exist
                 if (privateKeyFile != null && privateKeyFile.exists()) {
@@ -664,6 +666,7 @@ public void secondGPGIdentity(JFrame frame) {
 
                 JOptionPane.showMessageDialog(frame, "GPG Key successfully created and copied to " + amnesicGPGDir, "Success",
                         JOptionPane.INFORMATION_MESSAGE);
+                selectSecurityModules(frame);
             } catch (Exception ex) {
                 JOptionPane.showMessageDialog(frame, "Error while generating GPG key: " + ex.getMessage(), "Error",
                         JOptionPane.ERROR_MESSAGE);

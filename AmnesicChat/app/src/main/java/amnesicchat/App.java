@@ -138,6 +138,13 @@ public class App {
         // Username Label
         JLabel usernameLabel = new JLabel("Username: " + username + " (change)");
         usernameLabel.setFont(new Font("Arial", Font.PLAIN, 14));
+        usernameLabel.addMouseListener(new MouseAdapter() {
+            @Override
+            public void mouseClicked(MouseEvent e) {
+                openUsernameChangeUI();
+            }
+        });
+        
         gbc.gridy = 1;
         appPanel.add(usernameLabel, gbc);
 
@@ -209,6 +216,80 @@ public class App {
             startPingListener(frame);
         }
     }
+    
+    private static void openUsernameChangeUI() {
+        // Create a new JFrame for the username change UI
+        JFrame changeFrame = new JFrame("Change Username");
+        changeFrame.setSize(400, 300);
+        changeFrame.setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
+
+        // Panel and layout
+        JPanel centerPanel = new JPanel(new GridBagLayout());
+        GridBagConstraints gbc = new GridBagConstraints();
+        
+        // Username Label and Field
+        gbc.gridx = 0;
+        gbc.gridy = 0;
+        gbc.gridwidth = 2;
+        JLabel usernameLabel = new JLabel("Username:");
+        usernameLabel.setFont(new Font("SansSerif", Font.PLAIN, 14));
+        centerPanel.add(usernameLabel, gbc);
+
+        JTextField usernameField = new JTextField(20);
+        usernameField.setMaximumSize(new Dimension(300, 25));
+        gbc.gridx = 2;
+        gbc.gridy = 0;
+        gbc.gridwidth = 3;
+        centerPanel.add(usernameField, gbc);
+
+        // Add a gap
+        gbc.gridx = 0;
+        gbc.gridy = 1;
+        gbc.gridwidth = 5;
+        centerPanel.add(Box.createVerticalStrut(10), gbc);
+
+        // Description Label and TextArea
+        gbc.gridx = 0;
+        gbc.gridy = 2;
+        gbc.gridwidth = 2;
+        JLabel descriptionLabel = new JLabel("Description (Optional):");
+        descriptionLabel.setFont(new Font("SansSerif", Font.PLAIN, 14));
+        centerPanel.add(descriptionLabel, gbc);
+
+        JTextArea descriptionArea = new JTextArea(5, 20);
+        descriptionArea.setLineWrap(true);
+        descriptionArea.setWrapStyleWord(true);
+        descriptionArea.setBorder(BorderFactory.createLineBorder(Color.GRAY));
+        gbc.gridx = 2;
+        gbc.gridy = 2;
+        gbc.gridwidth = 3;
+        centerPanel.add(descriptionArea, gbc);
+
+        // Add buttons
+        JPanel buttonPanel = new JPanel();
+        JButton cancelButton = new JButton("Cancel");
+        JButton continueButton = new JButton("Continue");
+
+        // Cancel button closes the window
+        cancelButton.addActionListener(e -> changeFrame.dispose());
+
+        // Continue button - functionality will be added later
+        continueButton.addActionListener(e -> {
+            // Future logic for saving changes
+            System.out.println("Continue clicked");
+        });
+
+        buttonPanel.add(cancelButton);
+        buttonPanel.add(continueButton);
+        
+        gbc.gridx = 0;
+        gbc.gridy = 3;
+        gbc.gridwidth = 5;
+        centerPanel.add(buttonPanel, gbc);
+
+        changeFrame.add(centerPanel);
+        changeFrame.setVisible(true);
+    } 
     
 private synchronized void startPingListener(JFrame frame) {
     // Check if the ping listener is already running
