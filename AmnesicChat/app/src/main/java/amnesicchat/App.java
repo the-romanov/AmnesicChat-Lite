@@ -60,6 +60,7 @@ public class App {
     public int baseHeight = 350;	
     public boolean isPortForward = false;
     public String username;
+    private String fingerprint;
     
     public App() {
         frame = new JFrame("AmnesicChat"); // Constructor for frame
@@ -519,12 +520,11 @@ public void mainMenu(JFrame frame) {
                 String text = new String(fileContent, StandardCharsets.UTF_8);
                 String[] parts = text.split(":");
 
-                if (parts.length >= 3) {
+                if (parts.length >= 4) {
                     username = parts[0];
-                    String communicationKey = parts[2];
-                    String pubKey = hash.hashSHA512(hash.hashSHA512(communicationKey));
-
-                    loggedInMenu(frame, username, "GPG Key Needed");
+                    String pubKey = hash.hashSHA512(hash.hashSHA512(parts[2]));
+                    fingerprint = parts[3];
+                    loggedInMenu(frame, username, fingerprint);
                 } else {
                     JOptionPane.showMessageDialog(frame, "Invalid format in the file.", "Error", JOptionPane.ERROR_MESSAGE);
                 }

@@ -36,15 +36,18 @@ import org.bouncycastle.openpgp.*;
 import org.bouncycastle.openpgp.operator.PGPDigestCalculator;
 import org.bouncycastle.openpgp.operator.jcajce.JcaPGPDigestCalculatorProviderBuilder;
 import org.bouncycastle.openpgp.operator.jcajce.JcePBESecretKeyEncryptorBuilder;
+import org.bouncycastle.openpgp.operator.jcajce.JcePBESecretKeyDecryptorBuilder;
 import org.bouncycastle.openpgp.operator.jcajce.JcaPGPContentSignerBuilder;
 import org.bouncycastle.openpgp.operator.jcajce.JcaPGPKeyPair;
 import org.bouncycastle.jce.provider.BouncyCastleProvider;
 
+import java.util.Iterator;
 import java.io.*;
 import java.security.*;
 import java.security.spec.ECGenParameterSpec;
 import java.time.LocalDate;
 import java.util.Date;
+
 
 public class CreateAccount {
 	
@@ -351,7 +354,7 @@ public void createPassword(JFrame frame) {
             }
             try {
                 // Format the content to include username and the hashed communication key
-                String content = username + ":" + description + ":" + communicationKey;
+                String content = username + ":" + description + ":" + communicationKey + ":" + fingerprint;
 
                 // Create the file with the content
                 File keyFile = new File(System.getProperty("user.home") + File.separator + "communication_key.txt");
@@ -886,70 +889,237 @@ public void createGPGIdentity(JFrame frame) {
 }
 
 public static void loadGPGKey(JFrame frame, File gpgKeyFile) {
-frame.getContentPane().removeAll();
+    // Prepare the frame
+    frame.getContentPane().removeAll();
+    frame.setTitle("GPG Identity Loaded");
+    frame.setLayout(new BorderLayout());
 
-// TO FIX
-// Set the title and layout of the frame
-frame.setTitle("GPG Identity Loaded");
-frame.setLayout(new BorderLayout());
+    JPanel contentPanel = new JPanel();
+    contentPanel.setLayout(new BoxLayout(contentPanel, BoxLayout.Y_AXIS));
+    contentPanel.setBorder(BorderFactory.createEmptyBorder(20, 20, 20, 20));
 
-// Create a panel for the content
-JPanel contentPanel = new JPanel();
-contentPanel.setLayout(new BoxLayout(contentPanel, BoxLayout.Y_AXIS));
-contentPanel.setBorder(BorderFactory.createEmptyBorder(20, 20, 20, 20));
+    JLabel headerLabel = new JLabel("GPG Identity Loaded", SwingConstants.CENTER);
+    headerLabel.setFont(new Font("Arial", Font.BOLD, 16));
+    headerLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
+    contentPanel.add(headerLabel);
 
-// Add the GPG Identity Loaded header
-JLabel headerLabel = new JLabel("GPG Identity Loaded", SwingConstants.CENTER);
-headerLabel.setFont(new Font("Arial", Font.BOLD, 16));
-headerLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
-contentPanel.add(headerLabel);
+    contentPanel.add(Box.createRigidArea(new Dimension(0, 15)));
 
-contentPanel.add(Box.createRigidArea(new Dimension(0, 15))); // Spacer
+    // Check if the file exists and is readable
+    if (gpgKeyFile != null && gpgKeyFile.exists()) {
+        InputStream keyIn = null;
+        try {
+            keyIn = new FileInputStream(gpgKeyFile);  // Open the file stream initially
+            // Ensure the key is in ASCII armor (contains BEGIN and END PGP blocks)
+            String keyContent = new String(keyIn.readAllBytes(), StandardCharsets.UTF_8);
 
-// Parse the GPG key file to extract details
+            // Check if the file contains valid ASCII armored key block
+            if (!keyContent.contains("-----BEGIN PGP PRIVATE KEY BLOCK-----")) {
+                JOptionPane.showMessageDialog(frame, "The file does not contain a valid PGP private key block.", "Error", JOptionPane.ERROR_MESSAGE);
+                return;
+            }
 
-if (gpgKeyFile != null && gpgKeyFile.exists()) {
-try (BufferedReader reader = new BufferedReader(new FileReader(gpgKeyFile))) {
-    String line;
-    while ((line = reader.readLine()) != null) {
-        if (line.startsWith("Name:")) {
-        
-        } else if (line.startsWith("E-mail:")) {
-          
-        } else if (line.startsWith("Expiry:")) {
+            // Reset input stream after reading all bytes to ensure the decoder works
+            keyIn.close();
+            keyIn = new FileInputStream(gpgKeyFile);  // Reopen stream as it was closed above
 
-        } else if (line.startsWith("Algorithm:")) {
-          
-        } else if (line.startsWith("Comments:")) {
-         
-        } else if (line.startsWith("Fingerprint:")) {
-           
+            // Get the decoded stream
+            InputStream decodedStream = PGPUtil.getDecoderStream(keyIn);
+
+            // Initialize a list to hold the PGPSecretKeyRings
+            List<PGPSecretKeyRing> keyRingList = new ArrayList<>();
+
+            // Parse the stream and populate the keyRingList
+            PGPObjectFactory pgpFact = new PGPObjectFactory(decodedStream, new JcaKeyFingerprintCalculator());
+            Object obj;
+
+            while ((obj = pgpFact.nextObject()) != null) {
+                if (obj instanceof PGPSecretKeyRing) {
+                    keyRingList.add((PGPSecretKeyRing) obj);
+                }
+            }
+
+            // Create PGPSecretKeyRingCollection from the list
+            PGPSecretKeyRingCollection keyRings = new PGPSecretKeyRingCollection(keyRingList);
+
+            Iterator<PGPSecretKeyRing> ringIterator = keyRings.getKeyRings();
+            while (ringIterator.hasNext()) {
+                PGPSecretKeyRing keyRing = ringIterator.next();
+                PGPSecretKey secretKey = keyRing.getSecretKey();
+                if (secretKey == null) {
+                    continue;
+                }
+
+                // Check if the private key is encrypted by inspecting the key packet
+                boolean isEncrypted = true;
+                try {
+                    secretKey.extractPrivateKey(new JcePBESecretKeyDecryptorBuilder().build(new char[0]));
+                    isEncrypted = false; // If extraction succeeds, the key is not encrypted
+                } catch (PGPException e) {
+                    isEncrypted = true; // Exception means the key is encrypted
+                }
+
+                if (isEncrypted) {
+                    // Request passphrase
+                    String passphrase = requestPassphrase(frame);
+                    if (passphrase == null) {
+                        JOptionPane.showMessageDialog(frame, "Passphrase required to decrypt the private key.", "Error", JOptionPane.ERROR_MESSAGE);
+                        return;
+                    }
+
+                    // Attempt decryption
+                    PGPPrivateKey privateKey = decryptPrivateKey(secretKey, passphrase.toCharArray());
+                    if (privateKey == null) {
+                        JOptionPane.showMessageDialog(frame, "Failed to decrypt the private key.", "Error", JOptionPane.ERROR_MESSAGE);
+                        return;
+                    }
+                } else {
+                    // Extract private key without passphrase
+                    PGPPrivateKey privateKey = secretKey.extractPrivateKey(new JcePBESecretKeyDecryptorBuilder().build(new char[0]));
+                    if (privateKey == null) {
+                        JOptionPane.showMessageDialog(frame, "Failed to extract the private key.", "Error", JOptionPane.ERROR_MESSAGE);
+                        return;
+                    }
+                }
+
+
+                // Extract and display key information
+                String name = getKeyUserID(secretKey);
+                String email = getKeyUserEmail(secretKey);
+                String expiry = getKeyExpiryDate(secretKey);
+                String encryption = getEncryptionAlgorithm(secretKey);
+                String fingerprint = getKeyFingerprint(secretKey);
+
+                contentPanel.add(createInfoLabel("Name: " + name));
+                contentPanel.add(createInfoLabel("Email: " + email));
+                contentPanel.add(createInfoLabel("Expiry: " + expiry));
+                contentPanel.add(createInfoLabel("Encryption: " + encryption));
+                contentPanel.add(createInfoLabel("Fingerprint: " + fingerprint));
+            }
+
+        } catch (Exception e) {
+            e.printStackTrace();
+            JOptionPane.showMessageDialog(frame, "Error reading GPG key file: " + e.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
+        } finally {
+            try {
+                if (keyIn != null) {
+                    keyIn.close();  // Close the stream in the finally block to ensure it's always closed
+                }
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        }
+    } else {
+        JOptionPane.showMessageDialog(frame, "GPG key file not found.", "Error", JOptionPane.ERROR_MESSAGE);
+    }
+
+    // Add buttons to the frame
+    JPanel buttonPanel = new JPanel();
+    buttonPanel.setLayout(new FlowLayout(FlowLayout.CENTER, 20, 0));
+
+    JButton returnButton = new JButton("Return");
+    JButton continueButton = new JButton("Continue");
+
+    buttonPanel.add(returnButton);
+    buttonPanel.add(continueButton);
+
+    // Add components to the frame
+    frame.add(contentPanel, BorderLayout.CENTER);
+    frame.add(buttonPanel, BorderLayout.SOUTH);
+    frame.revalidate();
+    frame.repaint();
+}
+
+private static String requestPassphrase(JFrame frame) {
+    // Prompt the user to enter a passphrase
+    JPasswordField passwordField = new JPasswordField(20);
+    JPanel panel = new JPanel(new BorderLayout());
+    panel.add(new JLabel("Enter passphrase for the private key:"), BorderLayout.NORTH);
+    panel.add(passwordField, BorderLayout.CENTER);
+
+    int option = JOptionPane.showConfirmDialog(frame, panel, "Enter Passphrase", JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE);
+    if (option == JOptionPane.OK_OPTION) {
+        return new String(passwordField.getPassword());
+    }
+    return null; // Return null if the user cancels the input
+}
+
+private static PGPPrivateKey decryptPrivateKey(PGPSecretKey secretKey, char[] passphrase) throws Exception {
+    PGPPrivateKey privateKey = null;
+    try {
+        // Attempt to decrypt the private key using the passphrase
+        privateKey = secretKey.extractPrivateKey(new JcePBESecretKeyDecryptorBuilder().build(passphrase));
+    } catch (PGPException e) {
+        System.out.println("Error decrypting private key: " + e.getMessage());
+        // Print more detailed exception information to help diagnose the problem
+        e.printStackTrace();
+    }
+
+    // If the private key is null after decryption, it means the decryption failed
+    if (privateKey == null) {
+        System.out.println("Decryption failed, the passphrase may be incorrect or the key is corrupted.");
+    }
+
+    return privateKey;
+}
+
+private static JLabel createInfoLabel(String text) {
+    JLabel label = new JLabel(text, SwingConstants.CENTER);
+    label.setFont(new Font("SansSerif", Font.PLAIN, 14));
+    label.setAlignmentX(Component.CENTER_ALIGNMENT);
+    return label;
+}
+
+private static String getKeyUserID(PGPSecretKey secretKey) {
+    Iterator<String> userIDs = secretKey.getUserIDs();
+    return userIDs.hasNext() ? userIDs.next() : "Unknown";
+}
+
+private static String getKeyUserEmail(PGPSecretKey secretKey) {
+    Iterator<String> userIDs = secretKey.getUserIDs();
+    while (userIDs.hasNext()) {
+        String userID = userIDs.next();
+        if (userID.contains("<")) {
+            int startIndex = userID.indexOf("<") + 1;
+            int endIndex = userID.indexOf(">");
+            return userID.substring(startIndex, endIndex);
         }
     }
-} catch (IOException e) {
-    JOptionPane.showMessageDialog(frame, "Failed to read GPG key file: " + e.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
-}
-} else {
-JOptionPane.showMessageDialog(frame, "GPG key file not found.", "Error", JOptionPane.ERROR_MESSAGE);
+    return "Unknown";
 }
 
-// Add the buttons panel
-JPanel buttonPanel = new JPanel();
-buttonPanel.setLayout(new FlowLayout(FlowLayout.CENTER, 20, 0));
-
-JButton returnButton = new JButton("Return");
-JButton continueButton = new JButton("Continue");
-
-buttonPanel.add(returnButton);
-buttonPanel.add(continueButton);
-
-// Add components to the frame
-frame.add(contentPanel, BorderLayout.CENTER);
-frame.add(buttonPanel, BorderLayout.SOUTH);
-frame.revalidate();
-frame.repaint();
+private static String getKeyExpiryDate(PGPSecretKey secretKey) {
+    Date expiryDate = secretKey.getPublicKey().getValidSeconds() == 0 ? null : new Date(secretKey.getPublicKey().getCreationTime().getTime() + secretKey.getPublicKey().getValidSeconds() * 1000L);
+    return expiryDate != null ? expiryDate.toString() : "No Expiry";
 }
-    
+
+private static String getEncryptionAlgorithm(PGPSecretKey secretKey) {
+    int encryptionAlgo = secretKey.getPublicKey().getAlgorithm();
+    switch (encryptionAlgo) {
+        case PGPEncryptedData.CAST5:
+            return "CAST5";
+        case PGPEncryptedData.BLOWFISH:
+            return "Blowfish";
+        case PGPEncryptedData.TWOFISH:
+            return "Twofish";
+        case PGPEncryptedData.AES_128:
+            return "AES-128";
+        case PGPEncryptedData.AES_192:
+            return "AES-192";
+        case PGPEncryptedData.AES_256:
+            return "AES-256";
+        default:
+            return "Unknown Algorithm";
+    }
+}
+
+private static String getKeyFingerprint(PGPSecretKey secretKey) {
+    try {
+        return Arrays.toString(secretKey.getPublicKey().getFingerprint());
+    } catch (Exception e) {
+        return "Unknown Fingerprint";
+    }
+}
     public void insertGPGIdentity(JFrame frame) {
 	    SwingUtilities.invokeLater(() -> {
 	        frame.getContentPane().removeAll();
